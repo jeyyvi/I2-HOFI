@@ -178,118 +178,58 @@ class BASE_CNN(Params):
 class I2HOFI(Params):
     """
     I2HOFI : (paper: Interweaving Insights: High-Order Feature Interaction for Fine-Grained Visual Recognition)
-
-    I2HOFI is a hybrid CNN-GNN model designed for fine-grained visual recognition. It uses Graph Neural 
-    Networks (GNNs) to capture complex interactions both within individual regions (intra-ROI) and 
-    across multiple regions of interest (inter-ROI) in an image. This model combines APPNP and GAT 
-    layers for high-order feature interaction, enabling robust, context-aware representations.
-
-    Key Components:
-    - ROI Pooling: Extracts features from specified regions, with the full image as an additional ROI.
-    - Intra- and Inter-ROI GNNs: APPNP and GAT layers capture intra- and cross-region dependencies.
-    - Global Attention Pooling: Combines ROI features into a final representation for classification.
-
-    Methods:
-    - __init__: Initializes the model, sets feature dimensions, and configures ROI information.
-    - _construct_adjacency: Builds adjacency matrices for intra- and inter-ROI GNN layers.
-    - _extract_roi_nodes: Pools and reshapes each ROI for processing.
-    - _temp_nodes_transform: Reshapes and segments ROI tensors for graph convolution.
-    - _construct_layers: Defines all model layers, including backbone CNN, GNN layers, and attention pooling.
-    - call: Forward pass that applies feature extraction, ROI pooling, graph convolutions, and attention pooling for final predictions.
-
     """
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    #     # Set up feature dimensions based on the base model's output shape
-    #     dims = list(self.base_model.output.shape)[1:]
-    #     self.base_channels = dims[2]
-    #     self.feat_dim = int(self.base_channels) * self.pool_size * self.pool_size
+        # Set up feature dimensions based on the base model's output shape
+        dims = list(self.base_model.output.shape)[1:]
+        self.base_channels = dims[2]
+        self.feat_dim = int(self.base_channels) * self.pool_size * self.pool_size
 
-    #     # Initialize ROIs for pooling
-    #     self.rois_mat =  getROIS(
-    #         resolution = self.ROIS_resolution,
-    #         gridSize = self.ROIS_grid_size, 
-    #         minSize = self.minSize
-    #         )
-    #     self.num_rois = self.rois_mat.shape[0]
+        # Initialize ROIs for pooling
+        self.rois_mat = getROIS(
+            resolution=self.ROIS_resolution,
+            gridSize=self.ROIS_grid_size, 
+            minSize=self.minSize
+        )
+        self.num_rois = self.rois_mat.shape[0]
 
-    #     # Compute the number of nodes after reshaping the ROI tensor, e.g., for a 3 x 3 x 2048 tensor, 
-    #     # the total nodes are 3 * 3 * (2048 // 512) = 36, where 512 is the target output dimension per node for the GNN
-    #     self.cnodes = (int(self.base_channels) // self.gcn_outfeat_dim) * self.pool_size * self.pool_size
+        # Compute the number of nodes after reshaping the ROI tensor
+        self.cnodes = (int(self.base_channels) // self.gcn_outfeat_dim) * self.pool_size * self.pool_size
 
-    #     # Construct adjacency matrices and required layers
-    #     self._construct_adjecency()
-    #     self._construct_layers()
+        # Construct adjacency matrices and required layers
+        self._construct_adjacency()
+        self._construct_layers()
 
+    def _construct_adjacency(self):
+        """Create intra- and inter-ROI adjacency matrices."""
+        from spektral.layers import GCNConv
+        
+        # Intra-ROI adjacency (cnodes x cnodes)
+        A1 = np.ones((self.cnodes, self.cnodes), dtype='int')
+        cfltr1 = GCNConv.preprocess(A1).astype('f4')
+        A_intra = sp_matrix_to_sp_tensor(cfltr1)
 
+        # Inter-ROI adjacency (num_rois+1 x num_rois+1)
+        A2 = np.ones((self.num_rois + 1, self.num_rois + 1), dtype='int')
+        cfltr2 = GCNConv.preprocess(A2).astype('f4')
+        A_inter = sp_matrix_to_sp_tensor(cfltr2)
 
-    def sp_matrix_to_dense(sp_mat):
-        """Convert a scipy sparse matrix to a dense TF tensor."""
-        return tf.convert_to_tensor(sp_mat.todense(), dtype=tf.float32)
-
-    class I2HOFI(tf.keras.layers.Layer):
-        def __init__(self, num_rois, cnodes, **kwargs):
-            super(I2HOFI, self).__init__(**kwargs)
-            self.num_rois = num_rois
-            self.cnodes = cnodes
-            self.Adj = None
-            # Example sub-layers (replace with your actual GNN layers)
-            from spektral.layers import APPNPConv
-            self.tgcn_1 = APPNPConv(K=3)
-            self.tgcn_2 = APPNPConv(K=3)
-            
-            # Construct adjacency tensors
-            self._construct_adjecency()
-
-        def _construct_adjecency(self):
-            """Create intra- and inter-ROI adjacency matrices as dense tensors."""
-            from spektral.layers import GCNConv
-
-            # Intra-ROI adjacency (cnodes x cnodes)
-            A1 = np.ones((self.cnodes, self.cnodes), dtype='int')
-            cfltr1 = GCNConv.preprocess(A1).astype('f4')
-            A_intra = sp_matrix_to_dense(cfltr1)
-
-            # Inter-ROI adjacency (num_rois+1 x num_rois+1)
-            A2 = np.ones((self.num_rois + 1, self.num_rois + 1), dtype='int')
-            cfltr2 = GCNConv.preprocess(A2).astype('f4')
-            A_inter = sp_matrix_to_dense(cfltr2)
-
-            # Store adjacency matrices as dense tensors
-            self.Adj = [A_intra, A_inter]
-
-        def build(self, input_shape):
-            # Mark sub-layers as built (optional but avoids warnings)
-            self.tgcn_1.build([input_shape, self.Adj[0].shape])
-            self.tgcn_2.build([input_shape, self.Adj[1].shape])
-            self.built = True
-
-        def call(self, inputs, training=False):
-            """
-            Forward pass. inputs: image features of shape (batch, N_nodes, F)
-            """
-            x = inputs  # Example: (batch, 36, 512)
-
-            # Pass through GNN layers with adjacency tensors
-            x1 = self.tgcn_1([x, self.Adj[0]])
-            x2 = self.tgcn_2([x1, self.Adj[1]])
-
-            return x2
-
+        # Store adjacency matrices
+        self.Adj = [A_intra, A_inter]
 
     def _temp_nodes_transform(self, roi):
-        # Flatten spatial dimensions into a single node dimension for GNN processing, e.g., r x 3 x 3 x 2048 --> r x 9 x 2048
+        # Flatten spatial dimensions into a single node dimension for GNN processing
         reshaped_data = tf.reshape(roi, (-1, self.pool_size * self.pool_size, self.base_channels))
 
-        # Split along the channel dimension (say 4), e.g., r x 9 x 2048 --> 4 splits of [r x 9 x 512]
+        # Split along the channel dimension
         splits = tf.split(reshaped_data, num_or_size_splits=int(self.base_channels) // self.gcn_outfeat_dim, axis=2)
 
-        # Concatenate splits along the node dimension, e.g., 4 splits of [r x 9 x 512] --> r x 36 x 512
+        # Concatenate splits along the node dimension
         joined = tf.concat(splits, 1)
 
         return joined
-
 
     def _extract_roi_nodes(self, x0, base_out):
         # Apply ROI pooling on the backbone output to extract regional features
@@ -298,93 +238,84 @@ class I2HOFI(Params):
         jcvs = []
         # Loop through each ROI and process it individually
         for j in range(self.num_rois):
-            # Crop each ROI from the pooled features
             roi_crop = crop(1, j, j + 1)(roi_pool)
             lname = 'roi_lambda_' + str(j)
-
-            # Squeeze out unnecessary dimensions and reshape each ROI into a feature vector
-            x = layers.Lambda(squeezefunc, name = lname)(roi_crop)
+            x = layers.Lambda(squeezefunc, name=lname)(roi_crop)
             x = layers.Reshape((self.feat_dim,))(x)
-
-            # Append processed ROI feature to the list
             jcvs.append(x)
 
-        # Resize backbone output to match ROI pool size and treat as an additional ROI
+        # Resize backbone output to match ROI pool size
         if self.pool_size != base_out.shape[1]: 
-            base_out = layers.Lambda(lambda x: tf.image.resize(x, size = (self.pool_size, self.pool_size)), name = 'Lambda_img_2')(base_out)
+            base_out = layers.Lambda(lambda x: tf.image.resize(x, size=(self.pool_size, self.pool_size)), name='Lambda_img_2')(base_out)
 
-        # Reshape and append the resized base output to the list
-        x = layers.Reshape((self.feat_dim,))(base_out) # append the original ones
+        x = layers.Reshape((self.feat_dim,))(base_out)
         jcvs.append(x)
         
-        # Stack all ROI and base features along a new dimension
-        jcvs = layers.Lambda(stackfunc, name = 'lambda_stack')(jcvs)
-
-        # Apply dropout to the stacked ROI features
+        jcvs = layers.Lambda(stackfunc, name='lambda_stack')(jcvs)
         jcvs = self.roi_droput_1(jcvs)
 
         return jcvs
 
-
     def _construct_layers(self):
-        # Upsample base network output for finer ROI extraction, e.g., Xception [7 x 7 x 2048] -> [42 x 42 x 2048]
-        self.upsampling_layer = layers.Lambda(lambda x: tf.image.resize(x, size = (self.ROIS_resolution, self.ROIS_resolution)), name = 'UpSample')
+        # Upsample base network output for finer ROI extraction
+        self.upsampling_layer = layers.Lambda(
+            lambda x: tf.image.resize(x, size=(self.ROIS_resolution, self.ROIS_resolution)), 
+            name='UpSample'
+        )
 
-        # ROI pooling layer for extracting features from specified ROIs
-        self.roi_pooling = RoiPoolingConv(pool_size = self.pool_size, num_rois = self.num_rois, rois_mat = self.rois_mat)
+        # ROI pooling layer
+        self.roi_pooling = RoiPoolingConv(
+            pool_size=self.pool_size, 
+            num_rois=self.num_rois, 
+            rois_mat=self.rois_mat
+        )
 
-        # Dropout layer applied after ROI pooling
+        # Dropout layers
         self.roi_droput_1 = tf.keras.layers.Dropout(self.dropout_rate, name='DOUT_1')
+        self.roi_droput_2 = tf.keras.layers.Dropout(self.dropout_rate, name='DOUT_2')
 
-        # TimeDistributed layer to reshape each ROI for GNN processing; [r x ppC] --> [r x p x p x C]
-        # where r: regions, p: pool_size, C: base_channel dimension
+        # TimeDistributed layers
         self.timedist_layer1 = layers.TimeDistributed(
-            layers.Reshape((self.pool_size, self.pool_size, self.base_channels)), name='TD_Layer1'
+            layers.Reshape((self.pool_size, self.pool_size, self.base_channels)), 
+            name='TD_Layer1'
         )
-
-        # TimeDistributed layer to transform ROIs to a format compatible with GNN layers
-        # Example: ROIs of [r x p x p x C] split into s times [r x p x p x ndim] --> [r x pps x ndim]
-        # where ndim: output node dimension, s = C/ndim
+        
         self.timedist_layer2 = layers.TimeDistributed(
-            layers.Lambda(self._temp_nodes_transform), name='TD_Layer2'
+            layers.Lambda(self._temp_nodes_transform), 
+            name='TD_Layer2'
         )
 
+        # GNN layers
         if self.gnn1_layr:
-            # First GNN layer using APPNP
             self.tgcn_1 = APPNPConv(
                 self.gcn_outfeat_dim, 
-                alpha = self.alpha, 
-                propagations = 1, 
-                mlp_activation = self.appnp_activation, 
-                use_bias = True, 
-                name = 'GNN_1'
+                alpha=self.alpha, 
+                propagations=1, 
+                mlp_activation=self.appnp_activation, 
+                use_bias=True, 
+                name='GNN_1'
             )
 
         if self.gnn2_layr:
-            # Second GNN layer using GAT
             self.tgcn_2 = GATConv(
                 self.gat_outfeat_dim,
-                attn_heads = self.attn_heads,
-                concat_heads = self.concat_heads,
-                dropout_rate = self.dropout_rate,
-                activation = self.gat_activation,
-                kernel_regularizer = l2(self.l2_reg),
-                attn_kernel_regularizer = l2(self.l2_reg),
-                bias_regularizer = l2(self.l2_reg), 
-                name = 'GNN_2'
-                )
+                attn_heads=self.attn_heads,
+                concat_heads=self.concat_heads,
+                dropout_rate=self.dropout_rate,
+                activation=self.gat_activation,
+                kernel_regularizer=l2(self.l2_reg),
+                attn_kernel_regularizer=l2(self.l2_reg),
+                bias_regularizer=l2(self.l2_reg), 
+                name='GNN_2'
+            )
 
-        # Dropout layer applied after combining all intra- and inter-ROI nodes     
-        self.roi_droput_2 = tf.keras.layers.Dropout(self.dropout_rate, name='DOUT_2')
-
-        # Final layers: global attention pooling, batch normalization, and dense layer for classification
-        self.GlobAttpool = GlobalAttentionPool(self.gcn_outfeat_dim * 2, name = 'GlobalAttnPool')
-        self.BN2 = layers.BatchNormalization(name = 'BN')
+        # Final layers
+        self.GlobAttpool = GlobalAttentionPool(self.gcn_outfeat_dim * 2, name='GlobalAttnPool')
+        self.BN2 = layers.BatchNormalization(name='BN')
         self.Dense = layers.Dense(self.nb_classes, activation='softmax', name='Fully_Conn')
 
-        
     def call(self, inputs):
-        # Get feature maps from base model and Track base features if  enabled
+        # Get feature maps from base model
         base_out = self.base_model(inputs)
         if self.track_feat:  
             self.base_out = tf.identity(base_out)
@@ -392,66 +323,61 @@ class I2HOFI(Params):
         # Upsample feature maps
         x0 = self.upsampling_layer(base_out)
 
-        # Extract and process ROIs from upsampled feature maps
+        # Extract and process ROIs
         rois = self._extract_roi_nodes(x0, base_out)
 
-        # Apply time-distributed layers to reshape each ROI for GNN processing
+        # Apply time-distributed layers
         x1 = self.timedist_layer1(rois)
         x1 = self.timedist_layer2(x1)
 
         # Intra-ROI GNN processing
-        splits = tf.split(x1, num_or_size_splits = self.num_rois + 1, axis = 1)
+        splits = tf.split(x1, num_or_size_splits=self.num_rois + 1, axis=1)
         xcoll = []
         for x in splits:
             x = tf.squeeze(x, axis=1)
             if self.gnn1_layr:
-                temp = self.tgcn_1([x, self.Adj[0] ])
-                x = temp + x       # Apply residual connection
+                temp = self.tgcn_1([x, self.Adj[0]])
+                x = temp + x
             if self.gnn2_layr:
-                temp = self.tgcn_2([x, self.Adj[0] ])
-                temp = temp + x    # Apply residual connection
+                temp = self.tgcn_2([x, self.Adj[0]])
+                temp = temp + x
             xcoll.append(temp)
 
-        # Concatenate results from intra-ROI processing
         x2_intra = tf.concat(xcoll, axis=1)
         
-        # Track intra-ROI features if feature tracking is enabled
         if self.track_feat:
             self.x2_intra = tf.identity(x2_intra)
 
         # Inter-ROI GNN processing
-        x1 = tf.transpose(x1, perm=[0, 2, 1, 3]) # Swap dimensions for inter-ROI processing
-        splits = tf.split(x1, num_or_size_splits = self.cnodes, axis = 1)
+        x1 = tf.transpose(x1, perm=[0, 2, 1, 3])
+        splits = tf.split(x1, num_or_size_splits=self.cnodes, axis=1)
         xcoll = []
         for x in splits:
             x = tf.squeeze(x, axis=1)
             if self.gnn1_layr:
-                temp = self.tgcn_1([x, self.Adj[1] ])
-                x = temp + x       # Apply residual connection 
+                temp = self.tgcn_1([x, self.Adj[1]])
+                x = temp + x
             if self.gnn2_layr:
-                temp = self.tgcn_2([x, self.Adj[1] ])
-                temp = temp + x    # Apply residual connection
+                temp = self.tgcn_2([x, self.Adj[1]])
+                temp = temp + x
             xcoll.append(temp)
 
-        # Concatenate results from inter-ROI processing
         x2_inter = tf.concat(xcoll, axis=1)
         
-        # Track inter-ROI features if feature tracking is enabled
         if self.track_feat:
             self.x2_inter = tf.identity(x2_inter)
 
-        # Combine intra- and inter-ROI features and apply dropout
+        # Combine and process
         x2 = tf.concat([x2_intra, x2_inter], axis=1)
         x3 = self.roi_droput_2(x2)
 
-        # Apply global attention pooling
+        # Global attention pooling
         xf = self.GlobAttpool(x3)
         
-        # Track pooled features if feature tracking is enabled
         if self.track_feat:
             self.GlobAttpool_feat = tf.identity(xf)
 
-        # Final batch normalization and dense layer for classification
+        # Final layers
         xf = self.BN2(xf)
         feat = self.Dense(xf)
 
