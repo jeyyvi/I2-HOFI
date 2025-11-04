@@ -222,35 +222,60 @@ class I2HOFI(Params):
         self._construct_adjecency()
         self._construct_layers()
 
-    def _construct_adjecency(self):
-        from tensorflow.keras import layers
 
-        # --------------------------
-        # Intra-ROI adjacency
-        # --------------------------
-        A1 = np.ones((self.cnodes, self.cnodes), dtype='int') 
-        cfltr1 = GCNConv.preprocess(A1).astype('f4')   # Normalize adjacency
-        sp_intra = sp_matrix_to_sp_tensor(cfltr1)
-        A_intra = layers.Input(shape=sp_intra.shape,
-                            sparse=True,
-                            dtype=sp_intra.dtype,
-                            name='AdjacencyMatrix1')
 
-        # --------------------------
-        # Inter-ROI adjacency
-        # --------------------------
-        A2 = np.ones((self.num_rois + 1, self.num_rois + 1), dtype='int')
-        cfltr2 = GCNConv.preprocess(A2).astype('f4')   # Normalize adjacency
-        sp_inter = sp_matrix_to_sp_tensor(cfltr2)
-        A_inter = layers.Input(shape=sp_inter.shape,
-                            sparse=True,
-                            dtype=sp_inter.dtype,
-                            name='AdjacencyMatrix2')
+    def sp_matrix_to_dense(sp_mat):
+        """Convert a scipy sparse matrix to a dense TF tensor."""
+        return tf.convert_to_tensor(sp_mat.todense(), dtype=tf.float32)
 
-        # --------------------------
-        # Combine adjacency matrices
-        # --------------------------
-        self.Adj = [A_intra, A_inter]
+    class I2HOFI(tf.keras.layers.Layer):
+        def __init__(self, num_rois, cnodes, **kwargs):
+            super(I2HOFI, self).__init__(**kwargs)
+            self.num_rois = num_rois
+            self.cnodes = cnodes
+            self.Adj = None
+            # Example sub-layers (replace with your actual GNN layers)
+            from spektral.layers import APPNPConv
+            self.tgcn_1 = APPNPConv(K=3)
+            self.tgcn_2 = APPNPConv(K=3)
+            
+            # Construct adjacency tensors
+            self._construct_adjecency()
+
+        def _construct_adjecency(self):
+            """Create intra- and inter-ROI adjacency matrices as dense tensors."""
+            from spektral.layers import GCNConv
+
+            # Intra-ROI adjacency (cnodes x cnodes)
+            A1 = np.ones((self.cnodes, self.cnodes), dtype='int')
+            cfltr1 = GCNConv.preprocess(A1).astype('f4')
+            A_intra = sp_matrix_to_dense(cfltr1)
+
+            # Inter-ROI adjacency (num_rois+1 x num_rois+1)
+            A2 = np.ones((self.num_rois + 1, self.num_rois + 1), dtype='int')
+            cfltr2 = GCNConv.preprocess(A2).astype('f4')
+            A_inter = sp_matrix_to_dense(cfltr2)
+
+            # Store adjacency matrices as dense tensors
+            self.Adj = [A_intra, A_inter]
+
+        def build(self, input_shape):
+            # Mark sub-layers as built (optional but avoids warnings)
+            self.tgcn_1.build([input_shape, self.Adj[0].shape])
+            self.tgcn_2.build([input_shape, self.Adj[1].shape])
+            self.built = True
+
+        def call(self, inputs, training=False):
+            """
+            Forward pass. inputs: image features of shape (batch, N_nodes, F)
+            """
+            x = inputs  # Example: (batch, 36, 512)
+
+            # Pass through GNN layers with adjacency tensors
+            x1 = self.tgcn_1([x, self.Adj[0]])
+            x2 = self.tgcn_2([x1, self.Adj[1]])
+
+            return x2
 
 
     def _temp_nodes_transform(self, roi):
