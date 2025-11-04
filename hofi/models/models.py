@@ -198,29 +198,29 @@ class I2HOFI(Params):
     - call: Forward pass that applies feature extraction, ROI pooling, graph convolutions, and attention pooling for final predictions.
 
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
 
-        # Set up feature dimensions based on the base model's output shape
-        dims = list(self.base_model.output.shape)[1:]
-        self.base_channels = dims[2]
-        self.feat_dim = int(self.base_channels) * self.pool_size * self.pool_size
+    #     # Set up feature dimensions based on the base model's output shape
+    #     dims = list(self.base_model.output.shape)[1:]
+    #     self.base_channels = dims[2]
+    #     self.feat_dim = int(self.base_channels) * self.pool_size * self.pool_size
 
-        # Initialize ROIs for pooling
-        self.rois_mat =  getROIS(
-            resolution = self.ROIS_resolution,
-            gridSize = self.ROIS_grid_size, 
-            minSize = self.minSize
-            )
-        self.num_rois = self.rois_mat.shape[0]
+    #     # Initialize ROIs for pooling
+    #     self.rois_mat =  getROIS(
+    #         resolution = self.ROIS_resolution,
+    #         gridSize = self.ROIS_grid_size, 
+    #         minSize = self.minSize
+    #         )
+    #     self.num_rois = self.rois_mat.shape[0]
 
-        # Compute the number of nodes after reshaping the ROI tensor, e.g., for a 3 x 3 x 2048 tensor, 
-        # the total nodes are 3 * 3 * (2048 // 512) = 36, where 512 is the target output dimension per node for the GNN
-        self.cnodes = (int(self.base_channels) // self.gcn_outfeat_dim) * self.pool_size * self.pool_size
+    #     # Compute the number of nodes after reshaping the ROI tensor, e.g., for a 3 x 3 x 2048 tensor, 
+    #     # the total nodes are 3 * 3 * (2048 // 512) = 36, where 512 is the target output dimension per node for the GNN
+    #     self.cnodes = (int(self.base_channels) // self.gcn_outfeat_dim) * self.pool_size * self.pool_size
 
-        # Construct adjacency matrices and required layers
-        self._construct_adjecency()
-        self._construct_layers()
+    #     # Construct adjacency matrices and required layers
+    #     self._construct_adjecency()
+    #     self._construct_layers()
 
 
 
