@@ -227,7 +227,7 @@ class I2HOFI(Params):
         # Adjacency matrix for intra-ROI processing; if there are 36 nodes, then A_intra is 36 x 36
         A1 = np.ones((self.cnodes, self.cnodes), dtype = 'int') 
         cfltr1 = GCNConv.preprocess(A1).astype('f4')   # Normalize Adjacency matrix
-        A_intra = layers.Input(tensor=sp_matrix_to_sp_tensor(cfltr1), name = 'AdjacencyMatrix1') 
+        A_intra = tf.sparse.to_dense(sp_matrix_to_sp_tensor(cfltr1))
 
         # Adjacency matrix for inter-ROI processing; if there are 26 ROIs, then A_inter is 26 x 26
         A2 = np.ones((self.num_rois + 1, self.num_rois + 1), dtype = 'int') 
