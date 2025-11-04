@@ -202,7 +202,7 @@ class I2HOFI(Params):
         super().__init__(*args, **kwargs)
 
         # Set up feature dimensions based on the base model's output shape
-        dims = self.base_model.output.shape.as_list()[1:]
+        dims = list(self.base_model.output.shape)[1:]
         self.base_channels = dims[2]
         self.feat_dim = int(self.base_channels) * self.pool_size * self.pool_size
 
