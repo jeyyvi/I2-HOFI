@@ -223,35 +223,34 @@ class I2HOFI(Params):
         self._construct_layers()
 
     def _construct_adjecency(self):
-    import tensorflow as tf
-    from tensorflow.keras import layers
+        from tensorflow.keras import layers
 
-    # --------------------------
-    # Intra-ROI adjacency
-    # --------------------------
-    A1 = np.ones((self.cnodes, self.cnodes), dtype='int') 
-    cfltr1 = GCNConv.preprocess(A1).astype('f4')   # Normalize adjacency
-    sp_intra = sp_matrix_to_sp_tensor(cfltr1)
-    A_intra = layers.Input(shape=sp_intra.shape,
-                           sparse=True,
-                           dtype=sp_intra.dtype,
-                           name='AdjacencyMatrix1')
+        # --------------------------
+        # Intra-ROI adjacency
+        # --------------------------
+        A1 = np.ones((self.cnodes, self.cnodes), dtype='int') 
+        cfltr1 = GCNConv.preprocess(A1).astype('f4')   # Normalize adjacency
+        sp_intra = sp_matrix_to_sp_tensor(cfltr1)
+        A_intra = layers.Input(shape=sp_intra.shape,
+                            sparse=True,
+                            dtype=sp_intra.dtype,
+                            name='AdjacencyMatrix1')
 
-    # --------------------------
-    # Inter-ROI adjacency
-    # --------------------------
-    A2 = np.ones((self.num_rois + 1, self.num_rois + 1), dtype='int')
-    cfltr2 = GCNConv.preprocess(A2).astype('f4')   # Normalize adjacency
-    sp_inter = sp_matrix_to_sp_tensor(cfltr2)
-    A_inter = layers.Input(shape=sp_inter.shape,
-                           sparse=True,
-                           dtype=sp_inter.dtype,
-                           name='AdjacencyMatrix2')
+        # --------------------------
+        # Inter-ROI adjacency
+        # --------------------------
+        A2 = np.ones((self.num_rois + 1, self.num_rois + 1), dtype='int')
+        cfltr2 = GCNConv.preprocess(A2).astype('f4')   # Normalize adjacency
+        sp_inter = sp_matrix_to_sp_tensor(cfltr2)
+        A_inter = layers.Input(shape=sp_inter.shape,
+                            sparse=True,
+                            dtype=sp_inter.dtype,
+                            name='AdjacencyMatrix2')
 
-    # --------------------------
-    # Combine adjacency matrices
-    # --------------------------
-    self.Adj = [A_intra, A_inter]
+        # --------------------------
+        # Combine adjacency matrices
+        # --------------------------
+        self.Adj = [A_intra, A_inter]
 
 
     def _temp_nodes_transform(self, roi):
