@@ -222,25 +222,36 @@ class I2HOFI(Params):
         self._construct_adjecency()
         self._construct_layers()
 
-
     def _construct_adjecency(self):
-        # Adjacency matrix for intra-ROI processing; if there are 36 nodes, then A_intra is 36 x 36
-        A1 = np.ones((self.cnodes, self.cnodes), dtype = 'int') 
-        cfltr1 = GCNConv.preprocess(A1).astype('f4')   # Normalize Adjacency matrix
-        sp_tensor = sp_matrix_to_sp_tensor(cfltr2)
-        A_inter = layers.Input(shape=sp_tensor.shape,
-                       sparse=True,
-                       dtype=sp_tensor.dtype,
-                       name='AdjacencyMatrix2')
+    import tensorflow as tf
+    from tensorflow.keras import layers
 
+    # --------------------------
+    # Intra-ROI adjacency
+    # --------------------------
+    A1 = np.ones((self.cnodes, self.cnodes), dtype='int') 
+    cfltr1 = GCNConv.preprocess(A1).astype('f4')   # Normalize adjacency
+    sp_intra = sp_matrix_to_sp_tensor(cfltr1)
+    A_intra = layers.Input(shape=sp_intra.shape,
+                           sparse=True,
+                           dtype=sp_intra.dtype,
+                           name='AdjacencyMatrix1')
 
-        # Adjacency matrix for inter-ROI processing; if there are 26 ROIs, then A_inter is 26 x 26
-        A2 = np.ones((self.num_rois + 1, self.num_rois + 1), dtype = 'int') 
-        cfltr2 = GCNConv.preprocess(A2).astype('f4')  # Normalize Adjacency matrix
-        A_inter = layers.Input(tensor=sp_matrix_to_sp_tensor(cfltr2), name = 'AdjacencyMatrix2') 
+    # --------------------------
+    # Inter-ROI adjacency
+    # --------------------------
+    A2 = np.ones((self.num_rois + 1, self.num_rois + 1), dtype='int')
+    cfltr2 = GCNConv.preprocess(A2).astype('f4')   # Normalize adjacency
+    sp_inter = sp_matrix_to_sp_tensor(cfltr2)
+    A_inter = layers.Input(shape=sp_inter.shape,
+                           sparse=True,
+                           dtype=sp_inter.dtype,
+                           name='AdjacencyMatrix2')
 
-        # Combine inter- and intra-ROI adjacency matrices into a list
-        self.Adj = [A_intra, A_inter]
+    # --------------------------
+    # Combine adjacency matrices
+    # --------------------------
+    self.Adj = [A_intra, A_inter]
 
 
     def _temp_nodes_transform(self, roi):
