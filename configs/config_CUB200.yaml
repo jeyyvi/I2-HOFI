@@ -1,41 +1,41 @@
 DATA:
   # Dataset name
-  dataset: 'CUB200'
+  dataset: "CUB200"
   # Directory path to dataset
-  rootdir: './datasets/'             
+  rootdir: "/content/I2-HOFI/CUB_200_2011"
   # INPUT IMAGE DIMENSIONS
   image_size: [224, 224, 3]
-  
+
 HARDWARE:
   # GPU ID: -1 for CPU, 0/1 for GPU
   gpu_id: -1
   # Fraction of GPU memory to use b/w [0, 1]
-  gpu_utilisation: 0.9 
-  
+  gpu_utilisation: 0.9
+
 MODEL:
   # Training/validation batch size
   batch_size: 8
   # Model architecture, model_name available --> 'basecnn'; 'i2hofi'
-  model_name: 'i2hofi'
+  model_name: "i2hofi"
   # PATH to trained models (to load from a particular checkpoint)
-  checkpoint_path: 'TrainedModels/'   
+  checkpoint_path: "TrainedModels/"
   # Print model summary
   summary: True
   # Save model at every checkpoint frequency
-  save_model: False
+  save_model: True
   # Save model with best validation accuracy (overwriting previous best)
-  save_best_only: False
+  save_best_only: True
   # Load Model and resume training from a checkpoint epoch
   load_model: False
   # Backbone model
-  backbone: 'Xception'
-  # Freeze loaded pre-trained backbone weights (such as ImageNet Weights) 
+  backbone: "Xception"
+  # Freeze loaded pre-trained backbone weights (such as ImageNet Weights)
   freeze_backbone: False
   # Enable/Disable GNN layer 1
   gnn1_layr: True
   # Enable/Disable GNN layer 2
   gnn2_layr: True
-  
+
 HYPERPARAMETERS:
   # Teleport probability in APPNP (gamma in the paper)
   alpha: 0.3
@@ -48,22 +48,22 @@ HYPERPARAMETERS:
   # Pooled ROI resolution after resizing (default: 3 x 3)
   pool_size: 3
   # Output feature dimension of APPNP
-  gcn_outfeat_dim : 512
+  gcn_outfeat_dim: 512
   # Output feature dimension of GAT
-  gat_outfeat_dim : 512
+  gat_outfeat_dim: 512
   # Dropout rate
-  dropout_rate : 0.2
+  dropout_rate: 0.2
   # L2 regularization for GATConv layer
-  l2_reg : 2.5e-4
+  l2_reg: 2.5e-4
   # Number of heads in GAT attention
-  attn_heads : 1
+  attn_heads: 1
   # MLP activation function in APPNP
-  appnp_activation : 'sigmoid'
+  appnp_activation: "sigmoid"
   # Activation function for GAT output
-  gat_activation : 'elu'
+  gat_activation: "elu"
   # Method to combine GAT heads output: Concatenate (True) or Sum (False)
-  concat_heads : True
-  
+  concat_heads: True
+
 TRAIN:
   # To Restart training from a checkpoint epoch
   completed_epochs: 0
@@ -72,7 +72,7 @@ TRAIN:
   # Epoch frequency to save checkpoints
   checkpoint_freq: 2
   # Total training epochs
-  epochs: 150
+  epochs: 5
   # Initial Learning Rate (LR)
   lr: 0.01
   # Flag to apply step LR reduction
@@ -84,14 +84,14 @@ VISUALIZE:
 
 WANDB:
   # WandB project name
-  wb_proj_name : 'I2HOFI_CUB200'
+  wb_proj_name: "I2HOFI_CUB200"
   # WandB run name
-  run_name : 'None'
+  run_name: "None"
   # Flag to log data to WandB
-  wandb_log : False
+  wandb_log: False
   # WandB API key
   API_key: "########## REPLACE THIS STRING WITH YOUR WandB API HASH KEY ########"
-  
+
 COMPLEXITY:
   # Compute model computational complexity
   calflops: False
