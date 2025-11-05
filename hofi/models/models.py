@@ -324,9 +324,9 @@ class I2HOFI(Params):
         self.BN2 = layers.BatchNormalization(name='BN')
         self.Dense = layers.Dense(self.nb_classes, activation='softmax', name='Fully_Conn')
 
-    def call(self, inputs):
+    def call(self, inputs, training=None):
         # Get feature maps from base model
-        base_out = self.base_model(inputs)
+        base_out = self.base_model(inputs, training=training)
         if self.track_feat:  
             self.base_out = tf.identity(base_out)
         
@@ -346,10 +346,16 @@ class I2HOFI(Params):
         for x in splits:
             x = tf.squeeze(x, axis=1)
             if self.gnn1_layr:
-                temp = self.tgcn_1([x, self.Adj[0]], mask=None)
+                # Call layer directly without masking
+                temp = self.tgcn_1.call([x, self.Adj[0]], training=training)
                 x = temp + x
             if self.gnn2_layr:
-                temp = self.tgcn_2([x, self.Adj[0]], mask=None)
+                # GAT returns (output, attention_weights)
+                result = self.tgcn_2.call([x, self.Adj[0]], training=training)
+                if isinstance(result, tuple):
+                    temp = result[0]
+                else:
+                    temp = result
                 temp = temp + x
             xcoll.append(temp)
 
@@ -365,10 +371,16 @@ class I2HOFI(Params):
         for x in splits:
             x = tf.squeeze(x, axis=1)
             if self.gnn1_layr:
-                temp = self.tgcn_1([x, self.Adj[1]], mask=None)
+                # Call layer directly without masking
+                temp = self.tgcn_1.call([x, self.Adj[1]], training=training)
                 x = temp + x
             if self.gnn2_layr:
-                temp = self.tgcn_2([x, self.Adj[1]], mask=None)
+                # GAT returns (output, attention_weights)
+                result = self.tgcn_2.call([x, self.Adj[1]], training=training)
+                if isinstance(result, tuple):
+                    temp = result[0]
+                else:
+                    temp = result
                 temp = temp + x
             xcoll.append(temp)
 
@@ -379,7 +391,7 @@ class I2HOFI(Params):
 
         # Combine and process
         x2 = tf.concat([x2_intra, x2_inter], axis=1)
-        x3 = self.roi_droput_2(x2)
+        x3 = self.roi_droput_2(x3, training=training)
 
         # Global attention pooling
         xf = self.GlobAttpool(x3)
@@ -388,7 +400,7 @@ class I2HOFI(Params):
             self.GlobAttpool_feat = tf.identity(xf)
 
         # Final layers
-        xf = self.BN2(xf)
+        xf = self.BN2(xf, training=training)
         feat = self.Dense(xf)
 
         return feat
