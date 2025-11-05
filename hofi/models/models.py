@@ -324,6 +324,20 @@ class I2HOFI(Params):
         self.BN2 = layers.BatchNormalization(name='BN')
         self.Dense = layers.Dense(self.nb_classes, activation='softmax', name='Fully_Conn')
 
+    def build(self, input_shape):
+        """Build all layers with proper input shapes."""
+        # Build GNN layers with the correct shapes
+        if self.gnn1_layr:
+            # Build with shape: (batch, nodes, features)
+            self.tgcn_1.build([(None, self.cnodes, self.gcn_outfeat_dim), self.Adj[0].shape])
+        
+        if self.gnn2_layr:
+            # Build with shape: (batch, nodes, features)
+            self.tgcn_2.build([(None, self.cnodes, self.gat_outfeat_dim), self.Adj[0].shape])
+        
+        # Mark as built
+        super().build(input_shape)
+
     def call(self, inputs, training=None):
         # Get feature maps from base model
         base_out = self.base_model(inputs, training=training)
