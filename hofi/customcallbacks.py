@@ -27,6 +27,9 @@ class ValCallback(keras.callbacks.Callback):
         self.best_val_acc = 0.0
         # print('++++++++++++++ best only +++++++++++++++', self.best_only)
 
+    def _implements_test_batch_hooks(self):
+        return False
+
     def on_epoch_end(self, epoch, logs={}):
 
         if tf.executing_eagerly():
