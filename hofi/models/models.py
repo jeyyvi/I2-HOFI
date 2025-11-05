@@ -101,7 +101,7 @@ class GATConv(GATConv):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         '''
-        Modified _call_dense for compatibility recent TF package
+        Modified _call_dense for compatibility with recent TF package
         '''
 
     def _call_dense(self, x, a):
@@ -118,16 +118,25 @@ class GATConv(GATConv):
         attn_coef = attn_for_self + attn_for_neighs
         attn_coef = tf.nn.leaky_relu(attn_coef, alpha=0.2)
 
+        # FIX: Create mask and expand dimensions properly
+        # mask should be: (batch, 1, N) to broadcast with attn_coef: (batch, N, heads, M)
         mask = tf.where(a == 0.0, -10e9, 0.0)
         mask = tf.cast(mask, dtype=attn_coef.dtype)
+        
+        # Expand mask dimensions to match attn_coef
+        # a is (N, N) or (batch, N, N)
+        # attn_coef is (batch, N, heads, M)
+        # We need mask to be (batch, 1, 1, M) or similar to broadcast correctly
+        while len(mask.shape) < len(attn_coef.shape):
+            mask = tf.expand_dims(mask, axis=-2)
 
-        attn_coef += mask[..., None, :]
+        attn_coef = attn_coef + mask
         attn_coef = tf.nn.softmax(attn_coef, axis=-1)
         attn_coef_drop = self.dropout(attn_coef)
 
         output = tf.einsum("...NHM , ...MHI -> ...NHI", attn_coef_drop, x)
 
-        return output, attn_coef        
+        return output, attn_coef   
 
 
 # ################################################################################ #
