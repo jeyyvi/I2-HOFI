@@ -118,17 +118,22 @@ class GATConv(GATConv):
         attn_coef = attn_for_self + attn_for_neighs
         attn_coef = tf.nn.leaky_relu(attn_coef, alpha=0.2)
 
-        # FIX: Create mask and expand dimensions properly
-        # mask should be: (batch, 1, N) to broadcast with attn_coef: (batch, N, heads, M)
+        # Create mask for zero entries in adjacency matrix
+        # a shape: (N, N) or (batch, N, N)
+        # attn_coef shape: (batch, N, heads, M)
         mask = tf.where(a == 0.0, -10e9, 0.0)
         mask = tf.cast(mask, dtype=attn_coef.dtype)
         
-        # Expand mask dimensions to match attn_coef
-        # a is (N, N) or (batch, N, N)
-        # attn_coef is (batch, N, heads, M)
-        # We need mask to be (batch, 1, 1, M) or similar to broadcast correctly
-        while len(mask.shape) < len(attn_coef.shape):
-            mask = tf.expand_dims(mask, axis=-2)
+        # Reshape mask to broadcast with attn_coef
+        # Add dimensions for heads: (N, N) -> (1, N, 1, N) or (batch, N, N) -> (batch, N, 1, N)
+        mask_rank = len(mask.shape)
+        attn_rank = len(attn_coef.shape)
+        
+        if mask_rank == 2:  # (N, N)
+            mask = tf.expand_dims(mask, axis=0)  # (1, N, N)
+            mask = tf.expand_dims(mask, axis=2)  # (1, N, 1, N)
+        elif mask_rank == 3:  # (batch, N, N)
+            mask = tf.expand_dims(mask, axis=2)  # (batch, N, 1, N)
 
         attn_coef = attn_coef + mask
         attn_coef = tf.nn.softmax(attn_coef, axis=-1)
