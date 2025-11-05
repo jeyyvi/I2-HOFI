@@ -346,12 +346,12 @@ class I2HOFI(Params):
         for x in splits:
             x = tf.squeeze(x, axis=1)
             if self.gnn1_layr:
-                # Call layer directly without masking
-                temp = self.tgcn_1.call([x, self.Adj[0]], training=training)
+                # Call APPNP layer without training parameter
+                temp = self.tgcn_1.call([x, self.Adj[0]])
                 x = temp + x
             if self.gnn2_layr:
-                # GAT returns (output, attention_weights)
-                result = self.tgcn_2.call([x, self.Adj[0]], training=training)
+                # Call GAT layer without training parameter - returns (output, attention_weights)
+                result = self.tgcn_2.call([x, self.Adj[0]])
                 if isinstance(result, tuple):
                     temp = result[0]
                 else:
@@ -371,12 +371,12 @@ class I2HOFI(Params):
         for x in splits:
             x = tf.squeeze(x, axis=1)
             if self.gnn1_layr:
-                # Call layer directly without masking
-                temp = self.tgcn_1.call([x, self.Adj[1]], training=training)
+                # Call APPNP layer without training parameter
+                temp = self.tgcn_1.call([x, self.Adj[1]])
                 x = temp + x
             if self.gnn2_layr:
-                # GAT returns (output, attention_weights)
-                result = self.tgcn_2.call([x, self.Adj[1]], training=training)
+                # Call GAT layer without training parameter - returns (output, attention_weights)
+                result = self.tgcn_2.call([x, self.Adj[1]])
                 if isinstance(result, tuple):
                     temp = result[0]
                 else:
@@ -391,7 +391,7 @@ class I2HOFI(Params):
 
         # Combine and process
         x2 = tf.concat([x2_intra, x2_inter], axis=1)
-        x3 = self.roi_droput_2(x3, training=training)
+        x3 = self.roi_droput_2(x2, training=training)
 
         # Global attention pooling
         xf = self.GlobAttpool(x3)
