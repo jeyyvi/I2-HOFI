@@ -204,18 +204,27 @@ class I2HOFI(Params):
     def _construct_adjacency(self):
         """Create intra- and inter-ROI adjacency matrices."""
         from spektral.layers import GCNConv
+        import scipy.sparse as sp
         
         # Intra-ROI adjacency (cnodes x cnodes)
         A1 = np.ones((self.cnodes, self.cnodes), dtype='float32')
         cfltr1 = GCNConv.preprocess(A1).astype('f4')
-        # Convert sparse matrix to dense tensor
-        A_intra = tf.constant(cfltr1.toarray(), dtype=tf.float32)
+        
+        # Convert to dense tensor (handle both sparse matrix and numpy array)
+        if sp.issparse(cfltr1):
+            A_intra = tf.constant(cfltr1.toarray(), dtype=tf.float32)
+        else:
+            A_intra = tf.constant(cfltr1, dtype=tf.float32)
 
         # Inter-ROI adjacency (num_rois+1 x num_rois+1)
         A2 = np.ones((self.num_rois + 1, self.num_rois + 1), dtype='float32')
         cfltr2 = GCNConv.preprocess(A2).astype('f4')
-        # Convert sparse matrix to dense tensor
-        A_inter = tf.constant(cfltr2.toarray(), dtype=tf.float32)
+        
+        # Convert to dense tensor (handle both sparse matrix and numpy array)
+        if sp.issparse(cfltr2):
+            A_inter = tf.constant(cfltr2.toarray(), dtype=tf.float32)
+        else:
+            A_inter = tf.constant(cfltr2, dtype=tf.float32)
 
         # Store adjacency matrices
         self.Adj = [A_intra, A_inter]
