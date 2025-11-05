@@ -174,7 +174,6 @@ class BASE_CNN(Params):
         
         return x
 
-
 class I2HOFI(Params):
     """
     I2HOFI : (paper: Interweaving Insights: High-Order Feature Interaction for Fine-Grained Visual Recognition)
@@ -207,14 +206,16 @@ class I2HOFI(Params):
         from spektral.layers import GCNConv
         
         # Intra-ROI adjacency (cnodes x cnodes)
-        A1 = np.ones((self.cnodes, self.cnodes), dtype='int')
+        A1 = np.ones((self.cnodes, self.cnodes), dtype='float32')
         cfltr1 = GCNConv.preprocess(A1).astype('f4')
-        A_intra = sp_matrix_to_sp_tensor(cfltr1)
+        # Convert sparse matrix to dense tensor
+        A_intra = tf.constant(cfltr1.toarray(), dtype=tf.float32)
 
         # Inter-ROI adjacency (num_rois+1 x num_rois+1)
-        A2 = np.ones((self.num_rois + 1, self.num_rois + 1), dtype='int')
+        A2 = np.ones((self.num_rois + 1, self.num_rois + 1), dtype='float32')
         cfltr2 = GCNConv.preprocess(A2).astype('f4')
-        A_inter = sp_matrix_to_sp_tensor(cfltr2)
+        # Convert sparse matrix to dense tensor
+        A_inter = tf.constant(cfltr2.toarray(), dtype=tf.float32)
 
         # Store adjacency matrices
         self.Adj = [A_intra, A_inter]
@@ -336,10 +337,10 @@ class I2HOFI(Params):
         for x in splits:
             x = tf.squeeze(x, axis=1)
             if self.gnn1_layr:
-                temp = self.tgcn_1([x, self.Adj[0]])
+                temp = self.tgcn_1([x, self.Adj[0]], mask=None)
                 x = temp + x
             if self.gnn2_layr:
-                temp = self.tgcn_2([x, self.Adj[0]])
+                temp = self.tgcn_2([x, self.Adj[0]], mask=None)
                 temp = temp + x
             xcoll.append(temp)
 
@@ -355,10 +356,10 @@ class I2HOFI(Params):
         for x in splits:
             x = tf.squeeze(x, axis=1)
             if self.gnn1_layr:
-                temp = self.tgcn_1([x, self.Adj[1]])
+                temp = self.tgcn_1([x, self.Adj[1]], mask=None)
                 x = temp + x
             if self.gnn2_layr:
-                temp = self.tgcn_2([x, self.Adj[1]])
+                temp = self.tgcn_2([x, self.Adj[1]], mask=None)
                 temp = temp + x
             xcoll.append(temp)
 
