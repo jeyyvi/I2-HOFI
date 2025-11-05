@@ -24,7 +24,7 @@ tf.compat.v1.experimental.output_all_intermediates(True)
 """  Function for pre-processing directory information """
 def process_dir(rootdir, dataset, model_name):
 
-    dataset_dir = rootdir + dataset
+    dataset_dir = rootdir
     working_dir = os.path.dirname(os.path.realpath(__file__))
     train_data_dir = '{}/train/'.format(dataset_dir)
     val_data_dir = '{}/val/'.format(dataset_dir)
