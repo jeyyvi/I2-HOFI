@@ -27,8 +27,22 @@ class ValCallback(keras.callbacks.Callback):
         self.best_val_acc = 0.0
         # print('++++++++++++++ best only +++++++++++++++', self.best_only)
 
+    # New added -------------------------------------------------------------------
+
+    def _implements_test_batch_hooks(self):
+        # Keras checks this; return False if your callback does not implement
+        # per-test-batch hooks (most custom callbacks don't).
+        return False
+
+    def _implements_predict_batch_hooks(self):
+        # Same for predict-time batch hooks.
+        return False
+
+
     def _implements_test_batch_hooks(self):
         return False
+    
+    # ---------------------------------------------------------------------------------------
 
     def on_epoch_end(self, epoch, logs={}):
 
