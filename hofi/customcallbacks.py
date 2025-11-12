@@ -25,24 +25,12 @@ class ValCallback(keras.callbacks.Callback):
         self.best_only = best_only
         self.val_acc = 0.0
         self.best_val_acc = 0.0
-        # print('++++++++++++++ best only +++++++++++++++', self.best_only)
-
-    # New added -------------------------------------------------------------------
 
     def _implements_test_batch_hooks(self):
-        # Keras checks this; return False if your callback does not implement
-        # per-test-batch hooks (most custom callbacks don't).
         return False
 
     def _implements_predict_batch_hooks(self):
-        # Same for predict-time batch hooks.
         return False
-
-
-    def _implements_test_batch_hooks(self):
-        return False
-    
-    # ---------------------------------------------------------------------------------------
 
     def on_epoch_end(self, epoch, logs={}):
 
@@ -54,34 +42,51 @@ class ValCallback(keras.callbacks.Callback):
         print(' - lr : ', lr)
 
         if self.wandb_log:
-            # Log epoch, training accuracy and loss
             wandb.log({'epoch' : epoch})
             wandb.log({'loss': logs['loss'], 'acc': logs['acc']})
             wandb.log({'lr': lr})
             
-
+        # Check if we should validate this epoch
         if (epoch + 1) % self.test_steps == 0 and epoch != 0:
             
-            loss, acc = self.model.evaluate(self.test_generator) # change to model.evaluate()
-
-            if self.model_save:
-                # print('++++++++++++++ Saving model from customcallback +++++++++++++++', self.checkpoint_path)
-                if self.best_only:
-                    if acc > self.best_val_acc and self.val_acc> 0.0: # delete previous file and replace with new one
-                        # Check if the file exists before trying to delete it
-                        if os.path.exists(self.model_path):
-                            os.remove(self.model_path)
-                            
-                        self.model_path = self.checkpoint_path.format(epoch, lr, acc)
-                        
-                elif (epoch + 1) % self.checkpoint_freq == 0 and epoch != 0: 
-                    # if best_only == False, then save based on checkpoint freq
-                    self.model_path = self.checkpoint_path.format(epoch, lr, acc)
-                
-                if self.best_val_acc > 0.0:
-                    self.model.save(self.model_path)
-
+            loss, acc = self.model.evaluate(self.test_generator)
             self.val_acc = acc
+            
+            # Determine if we should save
+            should_save = False
+            
+            if self.model_save and (epoch + 1) % self.checkpoint_freq == 0:
+                if self.best_only:
+                    # Only save if this is the best model so far
+                    if acc > self.best_val_acc:
+                        should_save = True
+                        # Delete previous best model
+                        if os.path.exists(self.model_path) and self.best_val_acc > 0.0:
+                            try:
+                                os.remove(self.model_path)
+                                print(f'Removed previous checkpoint: {self.model_path}')
+                            except Exception as e:
+                                print(f'Could not remove old checkpoint: {e}')
+                else:
+                    # Save every checkpoint_freq epochs
+                    should_save = True
+                
+                # Save the model if we should
+                if should_save:
+                    self.model_path = self.checkpoint_path.format(epoch + 1, lr, acc)
+                    
+                    # Create directory if it doesn't exist
+                    model_dir = os.path.dirname(self.model_path)
+                    if model_dir:
+                        os.makedirs(model_dir, exist_ok=True)
+                    
+                    try:
+                        self.model.save(self.model_path)
+                        print(f'\n✓ Saved checkpoint: {self.model_path}')
+                    except Exception as e:
+                        print(f'\n✗ Failed to save checkpoint: {e}')
+            
+            # Update best validation accuracy
             self.best_val_acc = max(self.best_val_acc, self.val_acc)
                
             # Log validation accuracy and loss
