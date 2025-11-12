@@ -24,7 +24,7 @@ MODEL:
   # Save model at every checkpoint frequency
   save_model: True
   # Save model with best validation accuracy (overwriting previous best)
-  save_best_only: True
+  save_best_only: False
   # Load Model and resume training from a checkpoint epoch
   load_model: False
   # Backbone model

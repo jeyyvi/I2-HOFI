@@ -254,10 +254,13 @@ else:
     model.fit(
         train_dg, 
         steps_per_epoch = steps_per_epoch, 
+        validation_data = val_dg,  # ← ADD THIS LINE
+        validation_steps = len(val_dg),  # ← ADD THIS LINE
+        validation_freq = validation_freq,  # ← ADD THIS LINE
         initial_epoch = completed_epochs,  
         epochs = epochs, 
         callbacks = callbacks
-        ) #train and validate the model
+    )
     
     if wandb_log:
         wrun.finish()
