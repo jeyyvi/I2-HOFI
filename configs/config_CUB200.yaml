@@ -8,7 +8,7 @@ DATA:
 
 HARDWARE:
   # GPU ID: -1 for CPU, 0/1 for GPU
-  gpu_id: -1
+  gpu_id: 0
   # Fraction of GPU memory to use b/w [0, 1]
   gpu_utilisation: 0.9
 
