@@ -49,7 +49,8 @@ class ValCallback(keras.callbacks.Callback):
         if tf.executing_eagerly():
             lr = self.model.optimizer.lr.numpy()
         else:
-            lr = self.model.optimizer.learning_rate.numpy()
+            lr = tf.keras.backend.get_value(self.model.optimizer.learning_rate)
+
         print(' - lr : ', lr)
 
         if self.wandb_log:
