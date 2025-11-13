@@ -4,9 +4,7 @@ import yaml
 import json
 import numpy as np
 import pandas as pd
-from sklearn.metrics import classification_report, confusion_matrix
-import matplotlib.pyplot as plt
-import seaborn as sns
+from sklearn.metrics import classification_report
 
 import tensorflow as tf
 from tensorflow.keras.models import Model
@@ -165,84 +163,6 @@ def evaluate_model_detailed(model, data_generator, class_names, output_dir):
         f.write(f"Overall Accuracy: {overall_accuracy:.4f}\n\n")
         f.write(report_text)
     print(f"✓ Full classification report saved to: {report_path}")
-    
-    # Create and save confusion matrix visualization (for top 50 classes)
-    # Full 200x200 confusion matrix would be too large
-    print("\nGenerating confusion matrix for top 50 most common classes...")
-    
-    # Get top 50 classes by support
-    top_50_classes = df_sorted.nlargest(50, 'Support')['Class_ID'].values
-    
-    # Filter predictions for top 50 classes
-    mask = np.isin(y_true, top_50_classes)
-    y_true_filtered = y_true[mask]
-    y_pred_filtered = y_pred[mask]
-    
-    # Create mapping to sequential indices
-    class_mapping = {old_idx: new_idx for new_idx, old_idx in enumerate(top_50_classes)}
-    y_true_mapped = np.array([class_mapping[y] for y in y_true_filtered])
-    y_pred_mapped = np.array([class_mapping[y] for y in y_pred_filtered])
-    
-    cm = confusion_matrix(y_true_mapped, y_pred_mapped)
-    
-    # Plot confusion matrix
-    plt.figure(figsize=(20, 18))
-    sns.heatmap(cm, annot=False, fmt='d', cmap='Blues', 
-                xticklabels=[class_names[i] for i in top_50_classes],
-                yticklabels=[class_names[i] for i in top_50_classes])
-    plt.title('Confusion Matrix - Top 50 Classes', fontsize=16)
-    plt.ylabel('True Label', fontsize=12)
-    plt.xlabel('Predicted Label', fontsize=12)
-    plt.xticks(rotation=90, ha='right', fontsize=8)
-    plt.yticks(rotation=0, fontsize=8)
-    plt.tight_layout()
-    
-    cm_path = os.path.join(output_dir, 'confusion_matrix_top50.png')
-    plt.savefig(cm_path, dpi=150, bbox_inches='tight')
-    plt.close()
-    print(f"✓ Confusion matrix saved to: {cm_path}")
-    
-    # Create performance distribution plots
-    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-    
-    # Precision distribution
-    axes[0, 0].hist(df_results['Precision'], bins=30, color='skyblue', edgecolor='black')
-    axes[0, 0].set_title('Precision Distribution', fontsize=14)
-    axes[0, 0].set_xlabel('Precision', fontsize=12)
-    axes[0, 0].set_ylabel('Number of Classes', fontsize=12)
-    axes[0, 0].axvline(df_results['Precision'].mean(), color='red', linestyle='--', 
-                       label=f'Mean: {df_results["Precision"].mean():.3f}')
-    axes[0, 0].legend()
-    
-    # Recall distribution
-    axes[0, 1].hist(df_results['Recall'], bins=30, color='lightgreen', edgecolor='black')
-    axes[0, 1].set_title('Recall Distribution', fontsize=14)
-    axes[0, 1].set_xlabel('Recall', fontsize=12)
-    axes[0, 1].set_ylabel('Number of Classes', fontsize=12)
-    axes[0, 1].axvline(df_results['Recall'].mean(), color='red', linestyle='--',
-                       label=f'Mean: {df_results["Recall"].mean():.3f}')
-    axes[0, 1].legend()
-    
-    # F1-Score distribution
-    axes[1, 0].hist(df_results['F1_Score'], bins=30, color='salmon', edgecolor='black')
-    axes[1, 0].set_title('F1-Score Distribution', fontsize=14)
-    axes[1, 0].set_xlabel('F1-Score', fontsize=12)
-    axes[1, 0].set_ylabel('Number of Classes', fontsize=12)
-    axes[1, 0].axvline(df_results['F1_Score'].mean(), color='red', linestyle='--',
-                       label=f'Mean: {df_results["F1_Score"].mean():.3f}')
-    axes[1, 0].legend()
-    
-    # Support distribution
-    axes[1, 1].hist(df_results['Support'], bins=30, color='wheat', edgecolor='black')
-    axes[1, 1].set_title('Support Distribution', fontsize=14)
-    axes[1, 1].set_xlabel('Number of Samples', fontsize=12)
-    axes[1, 1].set_ylabel('Number of Classes', fontsize=12)
-    
-    plt.tight_layout()
-    dist_path = os.path.join(output_dir, 'performance_distributions.png')
-    plt.savefig(dist_path, dpi=150, bbox_inches='tight')
-    plt.close()
-    print(f"✓ Performance distributions saved to: {dist_path}")
     
     return df_results, overall_accuracy
 
