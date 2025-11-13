@@ -70,9 +70,9 @@ TRAIN:
   # Epoch frequency for computing validation accuracy
   validation_freq: 2
   # Epoch frequency to save checkpoints
-  checkpoint_freq: 1
+  checkpoint_freq: 2
   # Total training epochs
-  epochs: 1
+  epochs: 2
   # Initial Learning Rate (LR)
   lr: 0.01
   # Flag to apply step LR reduction
