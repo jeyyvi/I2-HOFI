@@ -72,7 +72,7 @@ TRAIN:
   # Epoch frequency to save checkpoints
   checkpoint_freq: 1
   # Total training epochs
-  epochs: 2
+  epochs: 20
   # Initial Learning Rate (LR)
   lr: 0.01
   # Flag to apply step LR reduction
