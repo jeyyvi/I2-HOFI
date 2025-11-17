@@ -68,11 +68,11 @@ TRAIN:
   # To Restart training from a checkpoint epoch
   completed_epochs: 0
   # Epoch frequency for computing validation accuracy
-  validation_freq: 2
+  validation_freq: 1
   # Epoch frequency to save checkpoints
-  checkpoint_freq: 2
+  checkpoint_freq: 1
   # Total training epochs
-  epochs: 15
+  epochs: 2
   # Initial Learning Rate (LR)
   lr: 0.01
   # Flag to apply step LR reduction
