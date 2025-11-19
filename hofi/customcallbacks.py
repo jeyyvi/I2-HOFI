@@ -171,7 +171,7 @@ class ValCallback(keras.callbacks.Callback):
             })
         
         # Run validation if it's time
-        if (epoch + 1) % self.test_steps == 0 and epoch != 0:
+        if (epoch + 1) % self.test_steps == 0:  
             loss, acc = self.model.evaluate(self.test_generator, verbose=0)
             self.val_acc = acc
             val_loss = loss
