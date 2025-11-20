@@ -22,8 +22,10 @@
 
 # # ######################################### PROCESSING DATASET DIRECTORY INFO ####################################### #
 # """  Function for pre-processing directory information """
-# def process_dir(rootdir, dataset, model_name):
-
+# def process_dir(rootdir, dataset, model_name, config_checkpoint_path=None):
+#     """
+#     Fixed version: Uses config_checkpoint_path from config file instead of working_dir
+#     """
 #     dataset_dir = rootdir
 #     working_dir = os.path.dirname(os.path.realpath(__file__))
 #     train_data_dir = '{}/train/'.format(dataset_dir)
@@ -31,11 +33,22 @@
 #     if not os.path.isdir(val_data_dir):
 #         val_data_dir = '{}/test/'.format(dataset_dir)
 
-#     output_model_dir = '{}/TrainedModels/{}'.format(working_dir, model_name)
-#     metrics_dir = '{}/Metrics/{}'.format(working_dir, model_name)
+#     # FIXED: Use checkpoint path from config if provided (Google Drive path)
+#     if config_checkpoint_path and config_checkpoint_path != 'None':
+#         # Use the path from config (e.g., /content/drive/MyDrive/I2HOFI_Models/TrainedModels/)
+#         output_model_dir = config_checkpoint_path
+#         metrics_dir = os.path.join(os.path.dirname(config_checkpoint_path), 'Metrics', model_name)
+#     else:
+#         # Fallback to local paths (old behavior)
+#         output_model_dir = '{}/TrainedModels/{}'.format(working_dir, model_name)
+#         metrics_dir = '{}/Metrics/{}'.format(working_dir, model_name)
+    
+#     # Create directories if they don't exist
+#     os.makedirs(output_model_dir, exist_ok=True)
+#     os.makedirs(metrics_dir, exist_ok=True)
 
-#     nb_train_samples = sum([len(files) for r, d, files in os.walk(train_data_dir)]) # number of images used for training, including "other" action
-#     nb_val_samples = sum([len(files) for r, d, files in os.walk(val_data_dir)]) # number of images used for validation
+#     nb_train_samples = sum([len(files) for r, d, files in os.walk(train_data_dir)])
+#     nb_val_samples = sum([len(files) for r, d, files in os.walk(val_data_dir)])
 #     validation_steps = validation_freq
 
 #     return dataset_dir, train_data_dir, val_data_dir, output_model_dir, metrics_dir, nb_train_samples, validation_steps
@@ -69,6 +82,8 @@
 # # Assign 
 # assign_variables(param)
 
+# # FIXED: Extract checkpoint_path from config for use in process_dir
+# config_checkpoint_path = param.get('MODEL', {}).get('checkpoint_path', None)
 
 # """  Check and override with console paramaters  """
 # if len(sys.argv) > 2:
@@ -82,9 +97,13 @@
 #             exec("{} = '{}'".format(var_name, new_val))
 
 # """  << Fetcing directory info >>  """ 
-# dataset_dir, train_data_dir, val_data_dir, output_model_dir, metrics_dir, nb_train_samples, validation_steps = process_dir(rootdir, dataset, model_name)
+# # FIXED: Pass config_checkpoint_path to process_dir
+# dataset_dir, train_data_dir, val_data_dir, output_model_dir, metrics_dir, nb_train_samples, validation_steps = process_dir(
+#     rootdir, dataset, model_name, config_checkpoint_path
+# )
 # nb_classes = datasetInfo(dataset)
 # print('\n Dataset Location --> ', dataset_dir, '\n', 'no_of_class --> ', nb_classes)
+# print('📁 Checkpoints will be saved to:', output_model_dir)  # NEW: Show where files will be saved
 # # print(train_data_dir, val_data_dir)
 
 # print('_________________ Wandb_Logging _______________ : ', wandb_log)
@@ -212,9 +231,11 @@
 #     # Setting FILENAME for Saving model checkpoint
 #     if not load_model:
 #         try:
-#             checkpoint_path = output_model_dir + '|' + wrun.id + '|' + dataset + '|' + backbone + '|Bs:' + str(batch_size) + '|init_lr:' + str(lr) + '|epoch:{:03d}' + '|lr:{:.6f}' + '|valAcc{:.4f}' +'.h5'
+#             checkpoint_path = output_model_dir + 'i2hofi|' + wrun.id + '|' + dataset + '|' + backbone + '|Bs:' + str(batch_size) + '|init_lr:' + str(lr) + '|epoch:{:03d}' + '|lr:{:.6f}' + '|valAcc{:.4f}' +'.h5'
 #         except NameError:
-#             checkpoint_path = output_model_dir  + '|' + dataset + '|' + backbone + '|Bs:' + str(batch_size) + '|init_lr:' + str(lr) + '|epoch:{:03d}' + '|lr:{:.6f}' + '|valAcc{:.4f}' +'.h5'
+#             checkpoint_path = output_model_dir + 'i2hofi|' + dataset + '|' + backbone + '|Bs:' + str(batch_size) + '|init_lr:' + str(lr) + '|epoch:{:03d}' + '|lr:{:.6f}' + '|valAcc{:.4f}' +'.h5'
+        
+#         print('💾 Checkpoint path template:', checkpoint_path)  # NEW: Verify the path
 
 #     # =========== Custom CALLBACKS to record Validation metrics ============= #
 #     callbacks.append(
@@ -254,9 +275,9 @@
 #     model.fit(
 #         train_dg, 
 #         steps_per_epoch = steps_per_epoch, 
-#         validation_data = val_dg,  # ← ADD THIS LINE
-#         validation_steps = len(val_dg),  # ← ADD THIS LINE
-#         validation_freq = validation_freq,  # ← ADD THIS LINE
+#         validation_data = val_dg,
+#         validation_steps = len(val_dg),
+#         validation_freq = validation_freq,
 #         initial_epoch = completed_epochs,  
 #         epochs = epochs, 
 #         callbacks = callbacks
@@ -495,14 +516,17 @@ else:
         hasROIS = False
         )
     
-    # Setting FILENAME for Saving model checkpoint
-    if not load_model:
-        try:
-            checkpoint_path = output_model_dir + 'i2hofi|' + wrun.id + '|' + dataset + '|' + backbone + '|Bs:' + str(batch_size) + '|init_lr:' + str(lr) + '|epoch:{:03d}' + '|lr:{:.6f}' + '|valAcc{:.4f}' +'.h5'
-        except NameError:
-            checkpoint_path = output_model_dir + 'i2hofi|' + dataset + '|' + backbone + '|Bs:' + str(batch_size) + '|init_lr:' + str(lr) + '|epoch:{:03d}' + '|lr:{:.6f}' + '|valAcc{:.4f}' +'.h5'
-        
-        print('💾 Checkpoint path template:', checkpoint_path)  # NEW: Verify the path
+    # FIXED: Setting FILENAME for Saving model checkpoint
+    # Store the load path separately if loading a model
+    load_checkpoint_path = checkpoint_path if load_model else None
+    
+    # Always generate a NEW checkpoint path template for saving (even when resuming)
+    try:
+        checkpoint_path = output_model_dir + 'i2hofi|' + wrun.id + '|' + dataset + '|' + backbone + '|Bs:' + str(batch_size) + '|init_lr:' + str(lr) + '|epoch:{:03d}' + '|lr:{:.6f}' + '|valAcc{:.4f}' +'.h5'
+    except NameError:
+        checkpoint_path = output_model_dir + 'i2hofi|' + dataset + '|' + backbone + '|Bs:' + str(batch_size) + '|init_lr:' + str(lr) + '|epoch:{:03d}' + '|lr:{:.6f}' + '|valAcc{:.4f}' +'.h5'
+    
+    print('💾 Checkpoint path template for saving:', checkpoint_path)
 
     # =========== Custom CALLBACKS to record Validation metrics ============= #
     callbacks.append(
@@ -512,7 +536,7 @@ else:
             metrics_dir + model_name,
             wandb_log,
             save_model,
-            checkpoint_path,
+            checkpoint_path,  # Use the NEW template for saving
             save_best_only,
             checkpoint_freq
             )
@@ -527,8 +551,8 @@ else:
     
     # =======================  Building engine ======================== #
     if load_model:
-        print('_____________ Checkpoint path to Load Pretrained Model _____________ :', checkpoint_path)
-        model.load_weights(checkpoint_path)
+        print('_____________ Checkpoint path to Load Pretrained Model _____________ :', load_checkpoint_path)
+        model.load_weights(load_checkpoint_path)
     
     optimizer = SGD(learning_rate = lr) 
     model.compile(optimizer=optimizer,
