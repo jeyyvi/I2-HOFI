@@ -319,7 +319,7 @@ def main():
     if not os.path.isdir(test_data_dir):
         test_data_dir = f'{dataset_dir}/val/'
     
-    output_dir = '/content/drive/MyDrive/I2HOFI_Models/EvaluationResults/' + model_name
+    output_dir = '/content/drive/MyDrive/I2HOFI_Models3/EvaluationResults/' + model_name
     
     class_names = load_cub_class_names(dataset_dir)
     nb_classes = len(class_names)

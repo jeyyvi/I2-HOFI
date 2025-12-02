@@ -323,7 +323,7 @@ def process_dir(rootdir, dataset, model_name, config_checkpoint_path=None):
 
     # FIXED: Use checkpoint path from config if provided (Google Drive path)
     if config_checkpoint_path and config_checkpoint_path != 'None':
-        # Use the path from config (e.g., /content/drive/MyDrive/I2HOFI_Models/TrainedModels/)
+        # Use the path from config (e.g., /content/drive/MyDrive/I2HOFI_Models3/TrainedModels/)
         output_model_dir = config_checkpoint_path
         metrics_dir = os.path.join(os.path.dirname(config_checkpoint_path), 'Metrics', model_name)
     else:

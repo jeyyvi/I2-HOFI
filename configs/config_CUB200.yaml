@@ -18,7 +18,7 @@ MODEL:
   # Model architecture, model_name available --> 'basecnn'; 'i2hofi'
   model_name: "i2hofi"
   # PATH to trained models (to load from a particular checkpoint)
-  checkpoint_path: "/content/drive/MyDrive/I2HOFI_Models2/TrainedModels/"
+  checkpoint_path: "/content/drive/MyDrive/I2HOFI_Models3/TrainedModels/"
   # Print model summary
   summary: True
   # Save model at every checkpoint frequency
